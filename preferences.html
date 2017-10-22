@@ -1,0 +1,363 @@
+﻿<!DOCTYPE html>
+<html>
+   
+<head>
+    <title>Pixx</title>
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=default-width, initial-scale=1" />
+    <link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+        <link rel="stylesheet" href="css/pixxhockey.css" />
+        <script src="jquery/jquery.js"></script>
+        <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+        <script src="javascript/pixx.js"></script>
+<script>
+
+    var bTextMessage = false;
+
+    $(document).on('pageinit',
+        function ()
+        {
+            CheckLogin();
+            SetCommonEvents();
+            SetInner();
+
+        }
+    );
+    $(document).ready(function ()
+    {
+        GetMessageCount(MemberID);
+        GetData(LoadData);
+    });
+
+    function Update()
+    {
+
+        UpdateData();
+    }
+
+    function GetData(inCallback)
+    {
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetMemberPreferences";
+
+        var sData = '{MemberID:"' + MemberID + '"}';
+
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            async: false,
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function (request, status, error) {
+
+                // alert(error);
+
+            }
+        });
+    }
+
+    function LoadData(inData, inError)
+    {
+
+
+        bTextMessage = ((window.localStorage.getItem('MobileNumber') == "" ||window.localStorage.getItem('MobileNumber') == null) ? false : true);
+ 
+        var data = inData.d;
+        
+        $.each(data, function (index, rec) 
+        {
+
+            if (rec.TypeName == "New Games")
+            {
+                bnotNewGamesT = rec.Text;
+                bnotNewGamesE = rec.Email;
+                $("#hidNewGames").val(rec.TypeID);
+            }
+
+            if (rec.TypeName == "Games Complete")
+            {
+                bnotGamesCompleteT = rec.Text;
+                bnotGamesCompleteE = rec.Email;
+                $("#hidGamesComplete").val(rec.TypeID);
+            }
+
+            if (rec.TypeName == "New Message")
+            {
+                bnotNewMessagesT = rec.Text;
+                bnotNewMessagesE = rec.Email;
+                $("#hidNewMessages").val(rec.TypeID);
+            }
+       
+        });
+
+        // Set Email Values
+
+
+        $("#notNewMessagesE").val((bnotNewMessagesE == true ? "on" : "off"));
+        UpdateSlider("#notNewMessagesE");
+
+        $("#notNewGamesE").val((bnotNewGamesE == true ? "on" : "off"));
+        UpdateSlider("#notNewGamesE");
+
+        $("#notGamesCompleteE").val((bnotGamesCompleteE == true ? "on" : "off"));
+        UpdateSlider("#notGamesCompleteE");
+
+        //------------------------------------------------------------------
+        // Text Message Logic
+        //------------------------------------------------------------------
+        if (bTextMessage == false)
+        {
+            $("#notNewMessagesTLabel").hide();
+            $("#notNewMessagesTWrapper").hide();
+            $("#notNewGamesTLabel").hide();
+            $("#notNewGamesTWrapper").hide();
+            $("#notGamesCompleteTLabel").hide();
+            $("#notGamesCompleteTWrapper").hide();
+
+        }
+        else
+        {                     
+            $("#notNewMessagesT").val((bnotNewMessagesT == true ? "on" : "off"));
+            UpdateSlider("#notNewMessagesT");
+
+            $("#notNewGamesT").val((bnotNewGamesT == true ? "on" : "off"));
+            UpdateSlider("#notNewGamesT");
+
+            $("#notGamesCompleteT").val((bnotGamesCompleteT == true ? "on" : "off"));
+            UpdateSlider("#notGamesCompleteT");
+
+            $("#notNewMessagesTLabel").show();
+            $("#notNewMessagesTWrapper").show();
+
+            $("#notNewGamesTLabel").show();
+            $("#notNewGamesTWrapper").show();
+
+            $("#notGamesCompleteTLabel").show();
+            $("#notGamesCompleteTWrapper").show();
+        }
+
+    }
+
+  
+    function UpdateData()
+    {
+        var sets = "";
+        var sData = '{MemberID:"' + MemberID + '",';
+  
+        sData = sData + 'N1:"' + $("#hidNewMessages").val() + '",';
+        sData = sData + 'N1E:"' + $("#notNewMessagesE").val() + '",';
+        sData = sData + 'N1T:"' + $("#notNewMessagesT").val() + '",';
+        sData = sData + 'N2:"' + $("#hidGamesComplete").val() + '",';
+        sData = sData + 'N2E:"' + $("#notGamesCompleteE").val() + '",';
+        sData = sData + 'N2T:"' + $("#notGamesCompleteT").val() + '",';
+        sData = sData + 'N3:"' + $("#hidNewGames").val() + '",';
+        sData = sData + 'N3E:"' + $("#notNewGamesE").val() + '",';
+        sData = sData + 'N3T:"' + $("#notNewGamesT").val() + '"';
+        sData = sData + '}';
+
+        var inURL = ServicePrefix + "services/PixxGet.asmx/UpdateNotificationPreferences";
+
+        $.ajax
+        (
+            {
+                type: "POST",
+                url: inURL,
+                contentType: "application/json; charset=utf-8",
+                data: sData,
+                dataType: "json",
+                success: function (response) {
+
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each
+                    (
+                        function () {
+                            sError = sError + $(this).text();
+                        }
+                    );
+
+                    MessageData(response, sError);
+                },
+                error: function (request, status, error)
+                {
+                    //alert(status);
+                }
+            }
+        );
+
+    }
+    function MessageData()
+    {
+        alert("Notificatiions Updated");
+        //window.location.href = "scoreboard.html";
+    }
+</script>
+
+<style>
+    .ui-content {
+        width: 90% !important;
+    }
+ 
+</style>
+</head>
+<body>
+
+    <div id="login" data-role="page" data-theme="b">
+        <div data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+            <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+            <hr />
+            <!--<div data-role="content" data-theme="b" class="btnPanel">-->
+            <ul data-role="listview">
+                <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                <li><a data-ajax='false' href="sport.html">League</a></li>
+                <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                <li><a href="#" onclick="Logout();">Signout</a></li>
+            </ul>
+            <!--</div>-->
+        </div>
+        <!-- Data Postion Fixed-->
+        <div data-role="header" data-tap-toggle="false" data-theme="b" id="header">
+            <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;">
+            </div>
+            <div style="display:table; width:100%;">
+                <div style="display:table-row">
+                    <div align="center" id="displayDate" style="height:35px;display: table-cell; background-color: blue; color: yellow; width: 100%; text-align: center; vertical-align: middle">
+                        Notifications
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div data-role="content"  id="wrapper">
+            <div class="inner-content" style="display: table-cell">
+                <table border="0">
+                <tr>
+                    <td colspan="5"><input type="hidden" id="hidNewGames" value="" />
+                        <label style="font-size:smaller">New Games</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="display: table-cell; font-size: smaller">Email</div>
+                    </td>
+                    <td>
+                        <div style="display:table-cell">
+                            <select name="notNewGamesE" id="notNewGamesE" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div id="notNewGamesTLabel" style="display: table-cell; font-size: smaller">Text</div>
+                    </td>
+                    <td>
+                        <div id="notNewGamesTWrapper" style="display:table-cell">
+                            <select name="notNewGamesT" id="notNewGamesT" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+                <table border="0">
+                <tr>
+                    <td colspan="5"><input type="hidden" id="hidGamesComplete" value="" />
+                        <label style="font-size:smaller">Games Complete</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="display: table-cell; font-size: smaller">Email</div>
+                    </td>
+                    <td>
+                        <div style="display:table-cell">
+                            <select name="notGamesCompleteE" id="notGamesCompleteE" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div id="notGamesCompleteTLabel" style="display: table-cell; font-size: smaller">Text</div>
+                    </td>
+                    <td>
+                        <div id="notGamesCompleteTWrapper" style="display:table-cell">
+                            <select name="notGamesCompleteT" id="notGamesCompleteT" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                </tr>
+                </table>
+                <table border="0">
+                <tr>
+                    <td colspan="5"><input type="hidden" id="hidNewMessages" value="" />
+                        <label style="font-size:smaller">New Messages</label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div style="display: table-cell; font-size: smaller">Email</div>
+                    </td>
+                    <td>
+                        <div style="display:table-cell">
+                            <select name="notNewMessagesE" id="notNewMessagesE" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div id="notNewMessagesTLabel" style="display: table-cell; font-size: smaller">Text</div>
+                    </td>
+                    <td>
+                        <div id="notNewMessagesTWrapper" style="display:table-cell">
+                            <select name="notNewMessagesT" id="notNewMessagesT" data-role="slider" data-mini="true">
+                                <option value="off">Off</option>
+                                <option value="on">On</option>
+                            </select>
+                        </div>
+                    </td>
+                </tr>
+                </table>
+                <input id="btn" type="button" onclick="Update();" data-inline="true" value="Update" />
+            </div>
+        <div>
+        
+    </div>
+</div>
+        <div data-role="footer" data-position="fixed" data-tap-toggle="false" data-theme="b">
+            <div style="width:100%; display:table;">
+                <div style="display:table-row;">
+                    <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                </div>
+            </div>
+        </div>
+    </div> 
+</body>
+</html>

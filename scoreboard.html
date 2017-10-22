@@ -1,0 +1,995 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <title>Pixx</title>
+        <meta charset="UTF-8">
+            <meta name="viewport" content="width=default-width, initial-scale=1" />
+            <link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+                <link rel="stylesheet" href="css/pixxhockey.css" />
+                <script src="jquery/jquery.js"></script>
+                <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+                <script src="javascript/pixx.js"></script>
+            <script>
+                
+                var TotalGames = 0;
+                var Today = "";
+                var TodayYear = "";
+                var Yesterday = "";
+                var YesterdayYear = "";
+                var Tomorrow = "";
+                var TomorrowYear = "";
+
+                var LoadMonth = 0;
+                var LoadDay = 0;
+                var LoadYear = 0;
+                   
+                var ThisMonth = 0;
+                var ThisDay = 0;
+                var ThisYear = 0;
+                var bUseDHTML = false;
+                var pixxdata;
+                
+                var d = new Date();
+                
+                if (window.localStorage.getItem("DisplayDate") != null)
+                {
+                    d = new Date(window.localStorage.getItem("DisplayDate"));
+                }
+            
+                SetDate(d, 0);
+                
+                ThisMonth = d.getMonth() + 1;
+                ThisDay = d.getDate();
+                ThisYear = d.getFullYear();
+                
+                LoadDay = ThisDay;
+                LoadMonth = ThisMonth;
+                LoadYear = ThisYear;
+                
+                var Currmon = LoadMonth;
+                var Currday = LoadDay;
+                var Curryr = LoadYear;
+                
+
+                 // Constants
+                var gWinnerBackground = "#669900";
+                var gNoDecisionBackground = "white";
+                var gLoserBackground = "#FF3300";
+                var gPixxBackground = "blue";
+                var filePrefix = "/images/";
+
+                CheckLogin();
+                // Page Init
+                $(document).on("pageinit", "#site", function ()
+                {
+                               
+                               SetInner();
+                               SetCommonEvents();
+                               $("#site").on
+                               ("swipeleft", function () {
+                                    event.preventDefault();
+                                    NextDay();
+                                    return false;
+                                }
+                                )
+                               
+                               $("#site").on
+                               ("swiperight", function () {
+                                event.preventDefault();
+                                PrevDay();
+                                return false;
+                                }
+                                );
+                               
+                               $("#refreshthescreen").on
+                               ("tap", function () {
+                                    event.preventDefault();
+                                LoadTheDay(false);
+                                return false;
+                                }
+                                );
+                               
+                               
+                               });
+                               
+                
+                $(document).ready(function () {
+                                  
+                                  
+                                                 GetMessageCount(MemberID);
+                                  
+                                                 LoadTheDay(true);
+                                                 setInterval(function(){AutoUpdate()},180000);
+                                                 });
+                                                 
+                                                 
+                                                 
+                //----------
+                function AutoUpdate()
+                {
+                    var dt = new Date(Curryr, Currmon-1, Currday, 13, 0, 0);
+                    
+                    if (
+                        (LoadMonth == dt.getMonth() + 1) &&
+                        (LoadDay == dt.getDate()) && 
+                        (LoadYear == dt.getFullYear())
+                       )
+                    {
+                        LoadTheDay(true);
+                    }      
+                }
+                //-------------------------------------------------
+                // Date Work
+                //-------------------------------------------------
+                function NextDay()
+                {
+                    SetDate(TodayYear, 1);
+                    LoadTheDay(true);
+                }
+                
+                function PrevDay() {
+                    SetDate(TodayYear, -1);
+                    LoadTheDay(true);
+                }
+                
+                function SetDate(inDate, addDays)
+                {
+                    var TempDate = new Date(inDate);
+                    TempDate.setHours(13, 0, 0, 0);
+                    
+                    var mon = 0;
+                    var day = 0;
+                    var yr = 0;
+                    
+                    var milli = (1000 * 60 * 60 * 24)
+                    
+                    //var TempDate = new Date(yr, mon, day);
+                    
+                    if (addDays == 1) {
+                        TempDate.setTime(TempDate.getTime() + milli);
+                    }
+                    if (addDays == -1) {
+                        TempDate.setTime(TempDate.getTime() - milli);
+                    }
+                    
+                    Currmon = TempDate.getMonth() + 1;
+                    Currday = TempDate.getDate();
+                    Curryr = TempDate.getFullYear();
+                    
+                    Today = Currmon + '/' + Currday;
+                    
+                    TodayYear = Currmon + '/' + Currday + '/' + Curryr;
+                    window.localStorage.setItem("DisplayDate", TodayYear);
+
+                    // Tomorrow
+                    var dTomorrow = new Date(TempDate);
+                    dTomorrow.setHours(13, 0, 0, 0);
+                    dTomorrow.setTime(dTomorrow.getTime() + milli);
+                    mon = dTomorrow.getMonth() + 1;
+                    day = dTomorrow.getDate();
+                    yr = dTomorrow.getFullYear();
+                    
+                    Tomorrow = mon + '/' + day;
+                    TomorrowYear = mon + '/' + day + '/' + yr;
+                    
+                    //var dYesterday = TempDate.getTime() - milli;
+                    var dYesterday = new Date(TempDate);
+                    dYesterday.setHours(13, 0, 0, 0);
+                    dYesterday.setTime(dYesterday.getTime() - milli);
+                    
+                    mon = dYesterday.getMonth() + 1;
+                    day = dYesterday.getDate();
+                    yr = dYesterday.getFullYear();
+                    
+                    Yesterday = mon + '/' + day;
+                    YesterdayYear = mon + '/' + day + '/' + yr;
+                    
+                }
+                //------------------------------------------------
+                // Load Screen Main Routine
+                //------------------------------------------------
+                function LoadTheDay(bRefreshTheScreen) {
+                    
+                    //$.mobile.loading("show");
+                    
+                    
+                    HomePixx = 0;
+                    VisitorPixx = 0;
+                    TotalGames = 0;
+                    
+                    if (bRefreshTheScreen == true)
+                    {
+                    
+                    
+                        $("#NoGames").hide();
+                        $("#displayDate").html(TodayYear);
+                        //$("#Yesterday").text(" " + YesterdayYear);
+                        //$("#Tomorrow").text(TomorrowYear + " ");
+                        $("#Yesterday").text("");
+                        $("#Tomorrow").text("");
+
+                    }
+                    
+                    var LookupDate = new Date(TodayYear)
+                    var CurrentDate = new Date();
+                    LookupDate.setHours(23, 59, 59);
+                    
+                    GetPriorScores(MemberID, TodayYear, LoadPriorScores);
+                    
+                    
+                }
+                //----------------------------------------
+                // Get Live Scores from these calls
+                //----------------------------------------
+                function GetPriorScores(inMemberID, inGameDate, inCallback)
+                {
+
+
+                    $("#gameList").html("");
+                
+                    var gameArray = new Array();
+                    var game = {
+                        "Visitor": "Team1",
+                        "Home": "Home Team",
+                        "VisitorImage": "test",
+                        "HomeImage": "test 2",
+                        "VisitorScore": 3,
+                        "HomeScore": 2,
+                        "Pixx": "Home",
+                        "GameTime": "7:00",
+                        "GameID": 3
+                    };
+                    gameArray.push(game);
+                    inCallback(gameArray, "");
+                    return;
+
+                    var inURL = ServicePrefix + "services/PixxGet.asmx/GetGames";
+
+                    var sData = '{MemberID:"' + inMemberID + '", GameDate:"' + inGameDate + '", SportID:"' + SportID + '"}';
+                    
+                    $.ajax({
+                           type: "POST",
+                           url: inURL,
+                           contentType: "application/json; charset=utf-8",
+                           data: sData,
+                           dataType: "json",
+                           async: false,
+                           success: function (response) {
+                           var doc = $(response);
+                           var sError = "";
+                           
+                           doc.find("error").each(function () {
+                                                  
+                                                  sError = sError + $(this).text();
+                                                  
+                                                  }); //end each
+                           
+                           if (inCallback != null)
+                           {
+                           
+                            //$.mobile.loading("hide");
+                            inCallback(response, sError);
+                           
+                           } //end if
+                           
+                           },
+                           error: function (request, status, error) {
+                            //$.mobile.loading("hide");
+                           
+                           }
+                           });
+                           
+                }
+                function LoadPriorScores(inData, inError) {
+                    
+                    var prefix = "http://www.pixxsports.com/images/";
+                    var data = inData;
+                    //var data = inData.d;
+                    
+                    var ctr = 0;
+                    console.log(inData.d);
+                    $.each(data, function (index, game) {
+                        ctr++;
+                        console.log(1);
+                           //if (ctr == 1) {
+                           LoadGame(ctr,
+                                    game.Visitor,
+                                    game.Home,
+                                    prefix + game.VisitorImage,
+                                    prefix + game.HomeImage,
+                                    game.VisitorScore,
+                                    game.HomeScore,
+                                    game.Pixx,
+                                    game.GameTime,
+                                    game.GameID);
+                           
+                           });
+                           
+                           
+                           if (ctr == 0) {
+                               GenerateNoGamesHTML();
+                           }
+                           else {
+                               LoadPageHeader();
+                               
+                           }
+                           
+                           $("#gameList").show();
+                }
+                
+                function GetMemberPixx(inMemberID, inGameDate, inCallback)
+                {
+                    
+                    var inURL = ServicePrefix + "services/PixxGet.asmx/GetPixx";
+                    
+                    var sData = '{MemberID:"' + inMemberID + '", GameDate:"' + inGameDate + '"}';
+                    $.ajax({
+                           type: "POST",
+                           url: inURL,
+                           contentType: "application/json; charset=utf-8",
+                           data: sData,
+                           dataType: "json",
+                           async: false,
+                           success: function (response) {
+                           var doc = $(response);
+                           var sError = "";
+                           
+                           doc.find("error").each(function () {
+                                                  
+                                                  sError = sError + $(this).text();
+                                                  
+                                                  }); //end each
+                           
+                           if (inCallback != null) {
+                           inCallback(response, sError);
+                           
+                           } //end if
+                           
+                           },
+                           error: function (request, status, error) {
+                           //alert(error);
+                           
+                           }
+                           });
+                           
+                }
+                function FindPixx(inGameID) {
+                    var pixx = ""
+                    //alert('GameIN:' + inGameID);
+                    $.each(pixxdata, function (index, game) {
+                           //alert(game.GameID);
+                           if (game.GameID == inGameID) {
+                           pixx = game.Pixx;
+                           }
+                           
+                           });
+                           
+                           return pixx;
+                }
+                function LoadMemberPixx(inData, inError) {
+                    
+                    pixxdata = inData.d;
+                    GetScores();
+                    
+                }
+                function SetPixx(inPixx, inGameID) {
+                    var Game = $("input[value='" + inGameID + "']").attr("id");
+                    
+                    if (Game != undefined) {
+                        
+                        //alert(1);
+                        var pixxStatus = "";
+                        var game = Game.replace("GameID", "");
+                        var control = "#" + game;
+                        var gameComplete = $(control + "gameComplete").val();
+                        var pixxStatus = "";
+                        
+                        var homeScore = $(control + "HScore").html();
+                        var visitorScore = $(control + "VScore").html();
+                        var home = $(control + "H").html();
+                        var visitor = $(control + "V").html();
+                        
+                        pixxStatus = SetWinnerOrLoser(control, (gameComplete == "true" ? "final" : ""), homeScore, visitorScore, inPixx, visitor, home)
+                        
+                        SetPixxColor(control, pixxStatus);
+                        
+                    }
+                }
+                
+                //-------------------------------
+                // Header Data Load
+                //-------------------------------
+                function LoadPageHeader() {
+
+                }
+                // -----------------------------
+                // PIXX
+                //------------------------------
+                function DNP(control) {
+                    var Teamcontrol = control;
+                    $("#" + control).hide();
+                    
+                    var gameControl = control.replace("H", "").replace("V", "");
+                    
+                    if ($("#" + gameControl + "gameComplete").val() == "true") {
+                        $("#pComplete").popup("option", "positionTo", "#displayDate");
+                        
+                        setTimeout(function(){
+                                   $('#pComplete').popup('open');
+                                   },500);
+                        return;
+                    }
+                    
+                    if ($("#" + gameControl + "gameStarted").val() == "true") {
+                        $("#pStarted").popup("option", "positionTo", "#displayDate");
+                        setTimeout(function(){
+                                   $('#pStarted').popup('open');
+                                   },500);
+                        return;
+                    }
+                    $("#" + gameControl + "VPixx").val("false");
+                    $("#" + gameControl + "HPixx").val("false");
+                    
+                    var Gamecontrol = Teamcontrol.replace("H", "").replace("V", "");
+                    $("#" + Gamecontrol + 'VTR').css("background-color", "");
+                    $("#" + Gamecontrol + 'HTR').css("background-color", "");
+                    
+                    //1GameID""
+                    var GameID = $("#" + Gamecontrol + "GameID").val();
+                    
+                    SendInThePixx(MemberID, TodayYear, GameID, "");
+                }
+                function setTeam(control) {
+                    
+                    var actualControl = "#" + control;
+                    control = control.replace("Pic", "").replace("Wrapper", "").replace("TR", "");
+                    var Offcontrol = control;
+                    
+                    if ($("#" + control + "Pixx").val() == "true") {
+                        DNP(control);
+                        return;
+                    }
+                    
+                    // Game Level
+                    var gameControl = control.replace("H", "").replace("V", "");
+                    
+                    if ($("#" + gameControl + "gameComplete").val() == "true") {
+                        $("#pComplete").popup("option", "positionTo", "#displayDate");
+                        setTimeout(function(){
+                                   $('#pComplete').popup('open');
+                                   },500);
+                        return;
+                    }
+                    
+                    if ($("#" + gameControl + "gameStarted").val() == "true") {
+                        $("#pStarted").popup("option", "positionTo", "#displayDate");
+                        setTimeout(function(){
+                                   $('#pStarted').popup('open');
+                                   },500);
+                        return;
+                    }
+                    
+                    if (control.indexOf('H') > 0) {
+                        Offcontrol = control.replace("H", "V");
+                    }
+                    else {
+                        Offcontrol = control.replace("V", "H");
+                    }
+                    
+                    // Active Team Level
+                    $("#" + control + 'TR').css("background-color", gPixxBackground);
+                    $("#" + control + "Pixx").val("true");
+                    $("#" + Offcontrol + 'TR').css("background-color", "");
+                    $("#" + Offcontrol + "Pixx").val("false");
+                    
+                    var GameID = $("#" + gameControl + "GameID").val();
+                    var Pixx = $("#" + control).html();
+                    SendInThePixx(MemberID, TodayYear, GameID, Pixx);
+                    
+                }
+                function SendInThePixx(inMemberID, inGameDate, inGameID, inPixx) {
+                    
+                    var inURL = ServicePrefix + "services/PixxGet.asmx/UpdatePixx";
+                    
+                    var sData = '{MemberID:"' + inMemberID + '", GameDate:"' + inGameDate + '", GameID:"' + inGameID + '", Pixx:"' + inPixx + '"}';
+                    
+                    $.ajax({
+                           type: "POST",
+                           url: inURL,
+                           contentType: "application/json; charset=utf-8",
+                           data: sData,
+                           dataType: "json",
+                           async: false,
+                           success: function (response) {
+                           
+                           var doc = $(response);
+                           var sError = "";
+                           
+                           doc.find("error").each(function () {
+                                                  
+                                                  sError = sError + $(this).text();
+                                                  
+                                                  }); //end each
+                           
+                           },
+                           error: function (request, status, error) {
+                           
+                           //alert(error);
+                           
+                           }
+                           });
+                }
+                function GenerateNoGamesHTML() {
+                    var sData = '';
+                    
+                    sData = sData + '<div id="NoGames" class="gameContainer1">';
+                    sData = sData + '<div class="gameContainer2">';
+                    sData = sData + '    <div class="gameContainer3">';
+                    sData = sData + '         <div class="gameContainer4">';
+                    sData = sData + '            <div style="width:100%; display:table;">';
+                    sData = sData + '                <table width="100%" cellpadding="0" cellspacing="0" border="0">';
+                    sData = sData + '                   <tr>';
+                    sData = sData + '                        <td width="100%" align="center">';
+                    sData = sData + '                            <div class="gamePixxStatus" style="color:yellow">No Games Scheduled</div>';
+                    sData = sData + '                        </td>';
+                    sData = sData + '                    </tr>';
+                    sData = sData + '                </table>';
+                    sData = sData + '            </div>';
+                    sData = sData + '        </div>';
+                    sData = sData + '    </div>';
+                    sData = sData + '</div>';
+                    sData = sData + '</div>';
+                    
+                    $("#gameList").append(sData);
+                    $("#NoGames").show();
+                    
+                }
+                
+                function GenerateHTML(game) {
+                    var sRow = '';
+                    
+                    sRow = sRow + '<div id="' + game + '" class="gameContainer1"style="width:75%">';
+                    sRow = sRow + '<div class="gameContainer2">';
+                    sRow = sRow + '<div class="gameContainer3">';
+                    sRow = sRow + '<div id="' + game + 'box" class="gameContainer4" >';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'gameStarted" value="false" />';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'gameComplete" value="false" />';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'GameTime" value="00:00" />';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'GameID" value="" />';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'VPixx" value="false" />';
+                    sRow = sRow + '<input type="hidden" id="' + game + 'HPixx" value="false" />';
+                    
+                    sRow = sRow + '<table width="100%" border="1" cellpadding="4" style="background-color:silver" >';
+                    sRow = sRow + '<tr id="' + game + 'gameStatusRow">';
+                    
+                    sRow = sRow + '<td>';
+                    sRow = sRow + '<div class="gameStatusNew" id="' + game + 'gameStatus" style="text-align:left;"></div>';
+                    sRow = sRow + '</td>';
+                    sRow = sRow + '</tr>';
+                    sRow = sRow + '<tr class="gameVisitorNameWrapperNew" id="' + game + 'VTR">';
+                    sRow = sRow + '<td width="100%">';
+                    sRow = sRow + '<table width="100%" border="0"style="background-image: url(http://www.pixxsports.com/images/ice.jpg)" >';
+                    sRow = sRow + '<tr>';
+                    sRow = sRow + '<td  style="width:25%; vertical-align: middle;">';
+                    sRow = sRow + '                 <div id="' + game + 'VPicWrapper" class="teamPicWrapper">';
+                    sRow = sRow + '                     <img class="teamPic" id="' + game + 'VPic" src="" />';
+                    sRow = sRow + '                 </div>';
+                    sRow = sRow + '</td><td width="65%" style="vertical-align: middle;">';
+                    sRow = sRow + '                 <div class="gameVisitorNameNew" id="' + game + 'V"></div>';
+                    
+                    sRow = sRow + '                                    </td>';
+                    sRow = sRow + '             <td  style="width:19%; vertical-align:middle;">';
+                    sRow = sRow + '                 <div align="right" class="gameScore" id="' + game + 'VScore" style="width:25%"></div>';
+                    sRow = sRow + '             </td>';
+                    sRow = sRow + '         </tr>';
+                    sRow = sRow + '     </table>';
+                    sRow = sRow + ' </td>';
+                    sRow = sRow + '            </tr>';
+                    sRow = sRow + '            <tr class="gameHomeNameWrapperNew" id="' + game + 'HTR">';
+                    sRow = sRow + '  <td width="100%">';
+                    sRow = sRow + '     <table width="100%" border="0"style="background-image: url(http://www.pixxsports.com/images/ice.jpg)">';
+                    sRow = sRow + '         <tr>';
+                    sRow = sRow + '<td  style="width:25%; vertical-align: middle;">';
+                    sRow = sRow + '                 <div id="' + game + 'HPicWrapper" class="teamPicWrapper">';
+                    sRow = sRow + '                     <img class="teamPic" id="' + game + 'HPic" src="" />';
+                    sRow = sRow + '                 </div>';
+                    sRow = sRow + '</td><td width="65%" style="vertical-align: middle;">';
+                    sRow = sRow + '                 <div class="gameVisitorNameNew" id="' + game + 'H"></div>';
+                    
+                    sRow = sRow + '                                    </td>';
+                    sRow = sRow + '             <td style="width:10%; vertical-align:middle;">';
+                    sRow = sRow + '                 <div align="right" class="gameScore" id="' + game + 'HScore" style="width:25%"></div>';
+                    sRow = sRow + '             </td>';
+                    sRow = sRow + '         </tr>';
+                    sRow = sRow + '     </table>';
+                    sRow = sRow + ' </td>';
+                    sRow = sRow + '            </tr>';
+                    sRow = sRow + '        </table>';
+                    sRow = sRow + '    </div>';
+                    sRow = sRow + '</div>';
+                    sRow = sRow + '</div>';
+                    sRow = sRow + '</div>';
+                    
+                    $("#gameList").append(sRow);
+                    
+                    $("#" + game + "VTR").on
+                    ("tap", function () {
+                     setTeam(this.id);
+                     });
+                     
+                     $("#" + game + "HTR").on
+                     ("tap", function () {
+                      setTeam(this.id);
+                      });
+                      
+                }
+                function LoadGame(game, visitor, home, visitorImage, homeImage, visitorScore, homeScore, pixx, gameTime, gameID) {
+                    TotalGames++;
+                    GenerateHTML(game);
+                    
+                    // standard Control
+                    var control = "#" + game;
+                    var gameStatus = gameTime;  // Time Remaining + Period;
+                    var gameOver = false;
+                    var gameStarted = false;
+                    
+                    gameTime = gameTime.replace(" OT", "").replace(" SO", "");
+                    // set game ID
+                    $(control + "gameID").val(gameID);
+                    
+                    gameStarted = SetGameStartedVariable(gameStatus);
+                    
+                    if (gameTime.toLowerCase().indexOf("final") > -1) {
+                        gameOver = true;
+                    }
+                    
+                    $(control + "gameStatusRow").css("background-color", "#3D3D5C");
+                    $(control + "VPicWrapper").show();
+                    $(control + "HPicWrapper").show();
+                    
+                    // pixxStatus & pixxStatusColor
+                    var pixxStatusColor = "black";
+                    var pixxStatus = "";
+                    
+                    // Set Visiting Team
+                    $(control + "V").html(visitor);
+                    
+                    // Set Home Team
+                    $(control + "H").html(home);
+                    
+                    // Set Scores
+                    $(control + "VScore").html((visitorScore == "" ? "0" : visitorScore));
+                    $(control + "HScore").html((homeScore == "" ? "0" : homeScore));
+                    
+                    // Set Images
+                    $(control + "VPic").attr("src", visitorImage);
+                    $(control + "HPic").attr("src", homeImage);
+                    
+                    //Set GameID
+                    $(control + "GameID").val(gameID);
+                    
+                    pixxStatus = SetWinnerOrLoser(control, gameOver, homeScore, visitorScore, pixx, visitor, home)
+                    
+                    // set GameStatus
+                    
+                    if (gameStarted == true && gameOver == false) {
+                        $(control + "gameStatus").css("color", "yellow");
+                    }
+                    else {
+                        $(control + "gameStatus").css("color", "");
+                    }
+                    
+                    if (gameStarted == false) {
+                        if (gameStatus.indexOf(":") > -1) {
+                            gameStatus = gameStatus + " (EST)";
+                        }
+                        
+                    }
+                    
+                    $(control + "gameStatus").html(gameStatus);
+                    
+                    SetGameComplete(control, gameStatus.toLowerCase());
+                    
+                    SetGameStarted(control, gameStarted);
+                    
+                    SetPixxColor(control, pixxStatus);
+                    
+                    $(control).show();
+                }
+                
+                function SetGameStartedVariable(gameTime) {
+                    var ret = false;
+                    
+                    if (gameTime.toLowerCase().indexOf("nd") > -1) {
+                        ret = true;
+                    }
+                    else if (gameTime.toLowerCase().indexOf("shootout") > -1) {
+                        ret = true;
+                    }
+                    else if (gameTime.toLowerCase().indexOf("rd") > -1) {
+                        ret = true;
+                    }
+                    else if (gameTime.toLowerCase().indexOf("st") > -1) {
+                        ret = true;
+                    }
+                    else if (gameTime.toLowerCase().indexOf("ot") > -1) {
+                        ret = true;
+                    }
+                    return ret;
+                    
+                }
+                function TimeZoneDate(gameTime) {
+                    
+                    var d = new Date();
+                    var offSet = 0;
+                    var dateString = d.toString();
+                    if (dateString.indexOf("(PST)") > -1) {
+                        offSet = -3;
+                    }
+                    if (dateString.indexOf("(PDT)") > -1) {
+                        offSet = -3;
+                    }
+                    if (dateString.indexOf("(MST)") > -1) {
+                        offSet = -2;
+                    }
+                    if (dateString.indexOf("(MDT)") > -1) {
+                        offSet = -2;
+                    }
+                    if (dateString.indexOf("(CST)") > -1) {
+                        offSet = -1;
+                    }
+                    if (dateString.indexOf("(CDT)") > -1) {
+                        offSet = -1;
+                    }
+                    var timearr = gameTime.split(":");
+                    var DateToday = new Date(TodayYear);
+                    //alert(timearr[0]);
+                    var Secs = timearr[1].split(" ");
+                    DateToday.setHours(timearr[0]);
+                    DateToday.setMinutes(Secs[0]);
+                    //alert (DateToday);
+                    
+                    if (Secs[1] == "PM") {
+                        offSet = offSet + 12;
+                    }
+                    
+                    DateToday.setTime(DateToday.getTime() + (1000 * 60 * 60 * offSet));
+                    
+                    return DateToday;
+                }
+                function SetWinnerOrLoser(control, gameOver, homeScore, visitorScore, pixx, visitor, home) {
+                    var pixxStatus = "";
+                    $(control + "HTR").css("background-color", "");
+                    $(control + "VTR").css("background-color", "");
+                    
+                    // Set Pick
+                    if (pixx == visitor) {
+                        
+                        //VisitorPixx++;
+                        $(control + "HPixx").val("false");
+                        $(control + "VPixx").val("true");
+                        
+                        if (gameOver == true) {
+                            if (parseInt(visitorScore) > parseInt(homeScore)) {
+                                pixxStatus = "W";
+                                $(control + "VTR").css("background-color", gWinnerBackground);
+                            }
+                            else {
+                                if (parseInt(homeScore) > parseInt(visitorScore)) {
+                                    pixxStatus = "L";
+                                    $(control + "VTR").css("background-color", gLoserBackground);
+                                }
+                            }
+                        }
+                        else {
+                            $(control + "VTR").css("background-color", gPixxBackground);
+                            $(control + "HTR").css("background-color", "");
+                        }
+                    }
+                    else if (pixx == home) {
+                        
+                        $(control + "VPixx").val("false");
+                        $(control + "HPixx").val("true");
+                        
+                        if (gameOver == true) {
+                            
+                            if (parseInt(visitorScore) > parseInt(homeScore)) {
+                                pixxStatus = "L";
+                                $(control + "HTR").css("background-color", gLoserBackground);
+                            }
+                            else {
+                                if (parseInt(homeScore) > parseInt(visitorScore)) {
+                                    pixxStatus = "W";
+                                    $(control + "HTR").css("background-color", gWinnerBackground);
+                                }
+                            }
+                        }
+                        else {
+                            $(control + "HTR").css("background-color", gPixxBackground);
+                            $(control + "VTR").css("background-color", "");
+                        }
+                    }
+                    else {
+                        
+                        $(control + "HPixx").val("false");
+                        $(control + "VPixx").val("false");
+                        $(control + "VTR").css("background-color", "");
+                        $(control + "HTR").css("background-color", "");
+                    }
+                    
+                    return pixxStatus;
+                }
+                function SetGameStarted(control, gameStarted) {
+                    
+                    $(control + "gameStarted").val("false");
+                    if (gameStarted == true) {
+                        $(control + "gameStarted").val("true");
+                        
+                    }
+                }
+                function SetGameComplete(control, gameStatus) {
+                    $(control + "gameComplete").val("false");
+                    
+                    if (gameStatus.indexOf("final") > -1) {
+                        $(control + "gameComplete").val("true");
+                    }
+                }
+                function SetPixxColor(control, pixxStatus) {
+                    
+                    var pixxStatusColor = "";
+                    
+                    $(control + "box").css("background-color", gNoDecisionBackground);
+                    
+                    // Determine Pixx Status Color
+                    if (pixxStatus == "W") {
+                        pixxStatusColor = "white";
+                        //$(control + "box").css("background-color", gWinnerBackground);
+                    }
+                    else if (pixxStatus == "L") {
+                        pixxStatusColor = "red";
+                    }
+                    else if (pixxStatus == "DNP") {
+                        pixxStatusColor = "blue";
+                    }
+                    else {
+                        pixxStatusColor = "black";
+                    }
+                    // Set Status Value
+                    $(control + "pixxStatus").html(pixxStatus);
+                    // Set pixxStatus Color
+                    $(control + "pixxStatus").css("color", pixxStatusColor);
+                    
+                }
+                </script>
+
+    </head>
+    <body>
+        
+        <div data-role="page" id="site" data-theme="b">
+            <div class="btnPanel" data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+                <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+                <hr />
+                <ul data-role="listview">
+                    <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                    <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                    <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                    <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                    <li><a data-ajax='false' href="sport.html">League</a></li>
+                    <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                    <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                    <li><a href="#" onclick="Logout();">Signout</a></li>
+                </ul>
+            </div>
+            <!-- Data Postion Fixed-->
+            <div data-role="header" data-tap-toggle="false" data-theme="b" id="header" style="position:fixed">
+                <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;">
+                </div>
+                
+                <!--</div>-->
+                
+                <div style="display:table; background-color: #585858;width:100%;border-spacing:0px 0px 0px 0px;">
+                    <div style="display:table-row; background-color: #585858">
+                        <div style="width:5%">&nbsp;</div>
+                        <div align="center"style="width: 30%; background-color: #585858; display: table-cell; vertical-align: middle;">
+                            <a data-shadow="false" style="text-align:left;width: 75%;border: none 0 #585858; background-color: #585858" data-corners="false" href="#" onclick="PrevDay();" data-iconpos="left" data-icon="arrow-l" data-role="button">
+                                <span style="border: none 0 #585858;background-color: #585858" id="Yesterday">Yesterday</span>
+                            </a>
+                        </div>
+                        <div align="center" style="width: 30%;display:table-cell; color:yellow; font-size: small;  text-align: center; background-color: blue; vertical-align: middle" id="displayDate">
+                        </div>
+                        <div align="center"style="background-color: #585858;width:30%; display:table-cell;vertical-align:middle">
+                            <a data-shadow="false" style="text-align:right;width:75%;border: none 0 #585858; background-color: #585858" data-corners="false" href="#" onclick="NextDay();" data-iconpos="right" data-icon="arrow-r" data-role="button">
+                                <span style="border: none 0 #585858;background-color: #585858"id="Tomorrow">Tomorrow</span>
+                            </a>
+                        </div>
+                        <div style="width:6%">&nbsp;</div>
+                    </div>
+                </div>
+                
+            </div>
+            <div data-role="content" data-theme="b" id="wrapper">
+                <div id="gameVar_" class="gameContainer1" style="width:75%">
+
+                    <div class="gameContainer2">
+                        <div class="gameContainer3">
+                            <div id="gameVar_box" class="gameContainer4">
+                                <input type="hidden" id="gameVar_gameStarted" value="false" />
+                                <input type="hidden" id="gameVar_gameComplete" value="false" />
+                                <input type="hidden" id="gameVar_GameTime" value="00:00" />
+                                <input type="hidden" id="gameVar_GameID" value="" />
+                                <input type="hidden" id="gameVar_VPixx" value="false" />
+                                <input type="hidden" id="gameVar_HPixx" value="false" />
+                                <table width="100%" border="1" cellpadding="4" style="background-color:silver">
+                                    <tr id="gameVar_gameStatusRow">
+                                        <td>
+                                            <div class="gameStatusNew" id="gameVar_gameStatus" style="text-align:left;"></div>
+                                        </td>
+                                    </tr>
+                                    <tr class="gameVisitorNameWrapperNew" id="gameVar_VTR">
+                                        <td width="100%">
+                                            <table width="100%" border="0" style="background-image: url(http://www.pixxsports.com/images/ice.jpg)">
+                                                <tr>
+                                                    <td style="width:25%; vertical-align: middle;">
+                                                        <div id="gameVar_VPicWrapper" class="teamPicWrapper">
+                                                            <img class="teamPic" id="gameVar_VPic" src="" />
+                                                        </div>
+                                                    </td>
+                                                    <td width="65%" style="vertical-align: middle;">
+                                                        <div class="gameVisitorNameNew" id="gameVar_V"></div>
+                                                    </td>
+                                                    <td style="width:19%; vertical-align:middle;">
+                                                        <div align="right" class="gameScore" id="gameVar_VScore" style="width:25%"></div>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr class="gameHomeNameWrapperNew" id="gameVar_HTR">
+                                        <td width="100%">
+                                            <table width="100%" border="0" style="background-image: url(http://www.pixxsports.com/images/ice.jpg)">
+                                                <tr>
+                                                    <td style="width:25%; vertical-align: middle;">
+                                                        <div id="gameVar_HPicWrapper" class="teamPicWrapper">
+                                                            <img class="teamPic" id="gameVar_HPic" src="" />
+                                                        </div>
+                                                    </td>
+                                                    <td width="65%" style="vertical-align: middle;">
+                                                        <div class="gameVisitorNameNew" id="gameVar_H"></div>
+                                                    </td>
+                                                    <td style="width:10%; vertical-align:middle;">
+                                                        <div align="right" class="gameScore" id="gameVar_HScore" style="width:25%"></div>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gameList" class="inner-content">
+                    
+                </div>
+                <div data-role="popup" id="pComplete" data-overlay-theme="a">
+                    <p>Sorry this game is already complete.</p>
+                </div>
+                
+                
+                <div data-role="popup" id="pStarted" data-overlay-theme="a">
+                    <p>Sorry this game has already started.</p>
+                </div>
+            </div>
+            
+            <div data-role="footer" data-position="fixed" data-tap-toggle="false" data-theme="b">
+                <div style="width:100%; display:table;">
+                    <div style="display:table-row;">
+                        <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </body>
+</html>

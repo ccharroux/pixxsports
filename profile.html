@@ -1,0 +1,541 @@
+﻿<!DOCTYPE html>
+<html>
+   
+<head>
+    <title>Pixx</title>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+
+<link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+    <link rel="stylesheet" href="css/pixxhockey.css" />
+    <script src="jquery/jquery.js"></script>
+    <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+    <!-- Angular-->
+    <script src="assets/lib/angular/angular.min.js"></script>
+
+    <script src="javascript/pixx.js"></script>
+
+	<script>
+	
+	var SMTPID = 0;
+    var app = angular.module('pixxApp', []);
+
+    app.controller('pixxProfileCtrl', function ($scope, $http) {
+
+		var uri = ServicePrefix + "GetSMTP/";
+
+		$http.get(uri).then(function (result) {
+
+			if (!result) {
+				alert('returned no data');
+				return;
+			}
+
+			if (!result.data) 
+			{
+				alert(result.data.Message);
+				window.location.href = "../API Failure.html"			
+				return;
+			}
+			else
+			{
+				$scope.SMTP = result.data;
+
+			}
+
+		});
+		
+		uri = ServicePrefix + "GetProfile/?memberID=" + MemberID;
+
+		$http.get(uri).then(function (result) {
+
+			if (!result) {
+				alert('returned no data');
+				return;
+			}
+
+			if (!result.data) 
+			{
+				alert(result.data.Message);
+				window.location.href = "../API Failure.html"			
+				return;
+			}
+			else
+			{
+				$scope.FirstName = result.data.FirstName;
+				$scope.LastName = result.data.LastName;
+				$scope.EmailAddress = result.data.EmailAddress;
+				$scope.PhoneNumber = result.data.Phone;
+				SMTPID = result.data.SMTPID;
+				console.log($scope.Phone);
+				console.log('in');
+								
+				$("#SMTPProvider").val(SMTPID);
+				$("#SMTPProvider").selectmenu("refresh", true);
+
+				//$scope.ServiceDescription = result.data.Results[0].ServiceDescription;
+			}
+
+		});
+
+
+    });
+	
+    //var MemberID = 0;
+	
+    $(document).on('pageinit',
+        function ()
+        {
+            SetCommonEvents();
+            //LoadData();
+            SetInner();
+        }
+    
+    );
+    $(document).ready(function () {
+        GetMessageCount(MemberID);
+        $("#Password").attr("disabled", "disabled");
+        
+        if (MemberID==0)
+        {
+            $("#HidePassword").hide();
+            $("#ShowPassword").hide();
+            $("#Password").removeAttr("disabled");
+            $("#Password").val("");
+        }
+        else
+        {
+            $("#HidePassword").hide();
+            $("#ShowPassword").show();
+            $("#Password").val("DONOTCHANGE");
+        }
+		
+
+
+		
+    });
+
+    function UpdatePassword(blnUpdatePassword)
+    {
+
+        if (blnUpdatePassword == true)
+        {
+            $("#HidePassword").show();
+            $("#ShowPassword").hide();
+            $("#Password").removeAttr("disabled");
+            $("#Password").val("");
+        }
+        else
+        {
+            $("#HidePassword").hide();
+            $("#ShowPassword").show();
+            $("#Password").attr("disabled", "disabled");
+            $("#Password").val("DONOTCHANGE");
+        }
+
+    }
+    function Update()
+    {
+     
+        if ($("#FirstName").val().trim() == "") {
+            alert("You must enter a first name");
+            return;
+        }
+
+        if ($("#LastName").val().trim() == "") {
+            alert("You must enter a last name");
+            return;
+        }
+
+        if ($("#EmailAddress").val().trim() == "") {
+            alert("You must enter an email address");
+            return;
+        }
+
+        if ($("#Password").val().trim() == "") {
+            alert("You must enter a password");
+            return;
+        }
+
+        if ($("#SMTPProvider").val() != "0")
+        {
+            if ($("#MobileNumber").val().trim() == "")
+            {
+                alert("You must enter a Mobile Number when selecting a Provider");
+                return;
+            }
+            if ($("#MobileNumber").val().length != 10)
+            {
+                alert("You must enter a valid Mobile Number when selecting a Provider");
+                return;
+            }
+
+            if (isNaN($("#MobileNumber").val()) == true)
+            {
+                alert("You must enter a valid Mobile Number when selecting a Provider");
+                return;
+            }
+        }
+        else
+        {
+            $("#MobileNumber").val("");
+        }
+
+        SendData(MemberID,UpdateData);
+    }
+
+    function resetNumber()
+    {
+        if ($("#SMTPProvider").val().trim() == "")
+        {
+            $("#MobileNumber").val("");
+        }
+
+    }
+
+    function LoadData()
+    {
+		console.log('LoadData');
+		
+
+        GetSMTPProviders(LoadSMTPProviders);
+        $("#Password").val("");
+
+        if (MemberID == 0)
+        {
+            $("#btn").text("Register");
+            $("#FirstName").val("");
+            $("#LastName").val("");
+            $("#EmailAddress").val("");
+            $("#SMTPProvider").val("");
+            $("#MobileNumber").val("");
+        }
+        else
+        {
+            $("#btn").text("Update");
+            $("#FirstName").val(window.localStorage.getItem('FirstName'));
+            $("#LastName").val(window.localStorage.getItem('LastName'));
+            $("#EmailAddress").val(window.localStorage.getItem('EmailAddress'));
+            $("#SMTPProvider").val(window.localStorage.getItem('ProviderID'));
+            $("#MobileNumber").val(window.localStorage.getItem('MobileNumber'));
+        }
+        $("#btn").button("refresh");
+
+        UpdateList("#SMTPProvider");
+
+    }
+
+    function GetSMTPProviders(inCallback) 
+    {
+            var inURL = ServicePrefix + "services/PixxGet.asmx/GetSMTPProviders";
+
+            var sData = '{}';
+
+            $.ajax({
+                type: "POST",
+                url: inURL,
+                contentType: "application/json; charset=utf-8",
+                data: sData,
+                dataType: "json",
+                async: false,
+                success: function (response) {
+
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each(function () {
+
+                        sError = sError + $(this).text();
+
+                    }); //end each
+
+                    if (inCallback != null) {
+                        inCallback(response, sError);
+
+                    } //end if
+
+                },
+                error: function (request, status, error) {
+
+                    // alert(error);
+
+                }
+            });
+    }
+    function LoadSMTPProviders(inData, inError)
+    {
+
+        var data = inData.d;
+        var opts = "";
+        opts = opts + "<option value='0'>Select...</option>";
+        $.each(data, function (index, smtp)
+        {
+            opts = opts + "<option value='" + smtp.SMTPProviderID + "'>" + smtp.ProviderName + "</option>";
+        });
+
+        $("#SMTPProvider").html(opts);
+        $("#SMTPProvider").css("font-size", "small");
+        UpdateList("#SMTPProvider");
+
+    }
+
+
+    function SendData(MemberID, inCallback)
+    {
+	/*
+	            var sData = {EmailAddress:inEmailAddress, PassKey: inPassKey};
+            console.log(sData);
+            $.ajax({
+                dataType: "json",
+                url: inURL,
+                data: sData,
+                type: "POST",
+                success: function (response) 
+                {
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each(function () {
+
+                        sError = sError + $(this).text();
+
+                    }); //end each
+                    if (inCallback != null) {
+                        inCallback(response, sError);
+
+                    } //end if
+
+                },
+                error: function (request, status, error) {
+
+                    //alert(request);
+                    //alert(status);
+                    //alert(error);
+                    //console.log(inURL);
+                }
+            });
+			*/
+        var inURL = ServicePrefix + "UpdateMember/";
+
+        var sData = {MemberID:MemberID,
+FirstName:  $("#FirstName").val(),
+LastName:  $("#LastName").val(),
+EmailAddress:  $("#EmailAddress").val(),
+Password: $("#Password").val(),
+ProviderID: $("#SMTPProvider").val(),
+MobileNumber:  $("#MobileNumber").val()};
+
+        $.ajax
+        (
+            {
+                type: "POST",
+                url: inURL,
+                dataType: "json",
+                data: sData,
+                //dataType: "jsonp",
+                success: function (response)
+                {
+
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each
+                    (
+                        function ()
+                        {
+                            sError = sError + $(this).text();
+                        }
+                    );
+                    if (inCallback != null) {
+                        inCallback(response, sError);
+                    }
+
+                },
+                error: function (request, status, error)
+                {
+
+                }
+            }
+        );
+
+    }
+
+
+function UpdateData(inData, inError)
+{
+    
+    var data = inData.d;
+    $.each(data, function (index, rec)
+           {
+                if (rec.result == 1) {
+                    alert('Email Address is already signed up as a member. Please try another one.');
+           }
+           else
+           {
+                if (MemberID == 0) {
+                alert("Welcome to Pixx. Please sign in and start Pixxing!");
+                window.location.href = "scoreboard.html";
+                }
+                else
+                {
+                    alert("Profile Updated");
+                    UpdateCookie(MemberID, $("#EmailAddress").val(), $("#FirstName").val(), $("#LastName").val(), $("#SMTPProvider").val(), $("#MobileNumber").val());
+                }
+           }
+           });
+           
+           
+           
+}
+
+</script>
+
+<style>
+    .ui-content {
+        width: 90% !important;
+    }
+ 
+</style>
+</head>
+<body  ng-app="pixxApp">
+
+    <div id="login" data-role="page" data-theme="b">   
+        <div data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+            <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+            <hr />
+            <ul data-role="listview">
+                <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                <li><a data-ajax='false' href="sport.html">League</a></li>
+                <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                <li><a href="#" onclick="Logout();">Signout</a></li>
+            </ul>
+        </div>
+		
+        <div data-role="header" data-tap-toggle="false" data-theme="b" id="header">
+            <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;"></div>
+            <div style="display:table; width:100%;">
+                <div style="display:table-row">
+                    <div align="center" id="displayDate" style="height:35px;display: table-cell; background-color: blue; color: yellow; width: 100%; text-align: center; vertical-align: middle">
+                        Profile
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div ng-controller="pixxProfileCtrl" data-role="content" id="wrapper" style="display:table">
+            <div class="inner-content" style="display: table-cell">
+                <table border="0">
+                <tr>
+                    <td>
+                        <label for="firstname" style="font-size:smaller">First:</label>
+                    </td>
+                    <td>
+                        <input type="text" name="firstname" id="FirstName" value="{{FirstName}}" />
+                    </td>
+                </tr>
+    
+                <tr>
+                    <td>
+                        <label for="lastname" style="font-size:smaller">Last:</label>
+                    </td>
+                    <td>
+                        <input type="text" name="lastname" id="LastName" value="{{LastName}}" />
+                    </td>
+                </tr>
+    
+                <tr>
+                    <td>
+                        <label for="email" style="font-size:smaller">Email:</label>
+                    </td>
+                    <td>
+                        <input type="email" name="email" id="EmailAddress" value="{{EmailAddress}}" />
+                    </td>
+                </tr>
+    
+
+                    <tr>
+                        <td>
+                            <div style="display:table-cell;font-size:smaller">Provider:</div>
+                        </td>
+                        <td>
+                            <div style="display: table-cell;font-size: smaller">
+							<select onchange="resetNumber();" id="SMTPProvider">
+                                <option ng-repeat="x in SMTP" value="{{x.SMTPID}}">{{x.SMTPName}}</option>
+                            </select>
+							</div>
+							
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+    
+                            <div style="display: table-cell; font-size: smaller">
+                                Number:
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display: table-cell; font-size: smaller">
+                                <input style="display:table-cell;" type="tel" name="MobileNumber" id="MobileNumber" value="{{PhoneNumber}}" maxlength="10" />
+                            </div>
+                        </td>
+                    </tr>
+					<tr>
+                    <td>
+                        <label for="password" style="font-size:smaller">Password:</label>
+                    </td>
+                    <td><div style="display:table-row">
+                        <div style="display:table-cell">
+                            <input type="password" name="password" id="Password" value="" />
+                        </div>
+                    </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td >
+                        <div id="HidePassword" style="display:table-cell">
+                            <input type="button" onclick="UpdatePassword(false);"  value="Keep Password" />
+                        </div>
+                        <div id="ShowPassword"style="display:table-cell">
+                            <input type="button" onclick="UpdatePassword(true);" value="Change Password" />
+                        </div>
+                    </td>
+                </tr>
+					
+                </table>
+            
+                <div style="display:table-row">
+                    <div style="display:table-cell">
+                        <input id="btn" type="button" onclick="Update();" data-inline="true" value="Update" />
+                    </div>
+
+                    <div data-role="popup" id="popupDialog" data-overlay-theme="b" data-theme="b" data-dismissible="false" style="max-width:200px;">
+                        <div data-role="header" data-theme="b">
+                            <h1>Profile Error</h1>
+                        </div>
+                        <div role="main" >
+                            <h3 class="ui-title" id="message"></h3>
+                            <a href="#" class="ui-btn ui-corner-all ui-shadow ui-btn-inline ui-btn-b" data-rel="back">OK</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+		
+        <div data-role="footer" data-position="fixed" data-tap-toggle="false" data-theme="b">
+            <div style="width:100%; display:table;">
+                <div style="display:table-row;">
+                    <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+

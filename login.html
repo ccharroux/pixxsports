@@ -1,0 +1,265 @@
+﻿<!DOCTYPE html>
+<html>
+   
+<head>
+    <title>Pixx</title>
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=default-width, initial-scale=1" />
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+
+        <link rel="stylesheet" href="css/pixxhockey.css" />
+        <script src="jquery/jquery.js"></script>
+        <script src="javascript/pixx.js"></script>
+<script>
+
+        var MemberID = 0;
+        var ServicePrefix = (window.location.hostname.indexOf("localhost") > -1 ? "" : (window.location.hostname.indexOf("pixxsports.com") > -1 ? "/" : "http://www.pixxsports.com/"));
+		
+        ServicePrefix = "http://ec2-54-67-3-146.us-west-1.compute.amazonaws.com/pixx/";
+        $(document).ready
+        (
+            function()
+            {
+                SetInner();
+            }
+        );
+
+        function Register()
+        {
+            window.location.href = "profile.html";
+        }
+        function Login()
+        {
+
+            if ($("#email").val().trim() == "")
+            {
+                alert ("You must enter a email-address");
+                return;
+            }
+
+            if ($("#password").val().trim() == "")
+            {
+                alert ("You must enter a password");
+                return;
+            }
+
+            GetMemberID(
+                         $("#email").val().trim(),
+                         $("#password").val().trim(),
+                         LoadMemberID);
+
+        }
+        
+        function Password()
+        {
+            
+            if ($("#email").val().trim() == "")
+            {
+                alert ("You must enter a email-address");
+                return;
+            }
+        
+            var inURL = ServicePrefix + "services/PixxGet.asmx/SendPassword";
+
+            var sData = '{EmailAddress:"' + $("#email").val() + '"}';
+
+            $.ajax
+            (
+                {
+                    type: "POST",
+                    url: inURL,
+                    contentType: "application/json; charset=utf-8",
+                    data: sData,
+                    dataType: "json",
+                    async: false,
+
+                success: function (response) 
+                {
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each(function () {
+
+                        sError = sError + $(this).text();
+
+                    }); //end each
+                    
+                    alert('Password will be emailed to you shortly');
+
+                },
+                error: function (request, status, error)
+                {
+
+                  //  alert(status);
+                }
+            });
+
+            
+        }
+        
+        
+        
+        function GetMemberID(inEmailAddress, inPassKey, inCallback)
+        {
+            //var responseArray = new Array();
+
+            //var response = {
+            //    "MemberID": 1,
+            //    "FirstName": "Carl",
+            //    "LastName": "Charroux",
+            //    "SMTPProviderID": 1,
+            //    "TextPhoneNumber": "8182191528"
+            //};
+            //responseArray.push(response);
+
+            //inCallback(responseArray, "");
+
+
+            //return;
+
+
+            var inURL = ServicePrefix + "GetMemberID/";
+
+            var sData = {EmailAddress:inEmailAddress, PassKey: inPassKey};
+            console.log(sData);
+            $.ajax({
+                dataType: "json",
+                url: inURL,
+                data: sData,
+                type: "POST",
+                success: function (response) 
+                {
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each(function () {
+
+                        sError = sError + $(this).text();
+
+                    }); //end each
+                    if (inCallback != null) {
+                        inCallback(response, sError);
+
+                    } //end if
+
+                },
+                error: function (request, status, error) {
+
+                    //alert(request);
+                    //alert(status);
+                    //alert(error);
+                    //console.log(inURL);
+                }
+            });
+
+        }
+
+
+        function LoadMemberID(inData, inError)
+        {
+            var member = inData;
+            //console.log(data.MemberID);
+            //var data = inData.d;
+
+  //          $.each(data, function (index, member)
+  //          {
+                //console.log(member.MemberID);
+                MemberID=member.MemberID;
+
+                if (MemberID > 0)
+                {
+
+                    UpdateCookie(MemberID, $("#email").val(), member.FirstName, member.LastName, member.SMTPProviderID, member.TextPhoneNumber);
+
+                    var sets = 'notNewMessagesT';
+                    window.localStorage.setItem(sets, "on");
+
+                    sets = 'notNewMessagesE';
+                    window.localStorage.setItem(sets, "on");
+
+                    sets = 'notNewGamesE';
+                    window.localStorage.setItem(sets, "on");
+
+                    sets = 'notNewGamesT';
+                    window.localStorage.setItem(sets, "on");
+
+                    sets = 'notGamesCompleteE';
+                    window.localStorage.setItem(sets, "on");
+
+                    sets = 'notGamesCompleteT';
+                    window.localStorage.setItem(sets, "on");
+
+                    window.location = "scoreboard.html";
+                   //navigator.app.loadUrl("scoreboard.html");
+                   
+                    return;
+                }
+                else
+                {
+                    alert('Invalid Member');
+                    return;
+                }
+
+       //     });
+
+        }
+    </script>
+
+<style>
+    /* Overrides */
+
+    .ui-content
+    {
+             width:95% !important;
+             margin: 0 auto;
+
+    }
+
+</style>
+</head>
+<body>
+
+    <div id="login" class="container">
+
+        <div class="header">
+            PIXX
+        </div>
+
+
+        <div data-role="content">
+
+            <div class="form-group">
+                <label for="email">Email address:</label>
+                <input type="email" class="form-control" id="email">
+            </div>
+            <div class="form-group">
+                <label for="pwd">Password:</label>
+                <input type="password" class="form-control" id="password">
+            </div>
+
+            <!--<div data-role="fieldcontain">
+                <label for="email">Email:</label><br />
+                <input type="email" name="email" id="email" value="" />
+            </div>
+            <div data-role="fieldcontain">
+                <label for="password">Password:</label><br />
+                <input type="password" name="password" id="password" value="" />
+            </div>-->
+            <div>
+                <input type="button"  class='btn btn-primary btn-block'  onclick="Login();" value="Login" />
+                <input type="button"  onclick="Password();" class='btn btn-primary btn-block'   value="Forgot Password" />
+            </div>
+            <div>
+                <hr />
+                <div>Not a member yet?</div>
+                <input class='btn btn-primary btn-block' type="button" onclick="Register();" value="Register" />
+                <hr />
+            </div>
+
+        </div>
+
+    </div> 
+
+</body>
+</html>

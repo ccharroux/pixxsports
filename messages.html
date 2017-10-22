@@ -1,0 +1,473 @@
+﻿<!DOCTYPE html>
+<html>
+   
+<head>
+    <title>Pixx</title>
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=default-width, initial-scale=1" />
+    <link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+        <link rel="stylesheet" href="css/pixxhockey.css" />
+        <script src="jquery/jquery.js"></script>
+        <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+        <script src="javascript/pixx.js"></script>
+<script>
+
+    var AllMembers = '';
+            
+    $(document).on('pageinit',
+        function () {
+
+            CheckLogin();
+            SetCommonEvents();
+            GetNotificationDetails(MemberID, window.localStorage.getItem("FromMemberID"), LoadNotifications);
+            GetMemberList(MemberID, LoadMemberList);
+            SetInner();
+
+        }
+    );
+    
+    $(document).ready(function ()
+    {
+        GetMessageCount(MemberID);
+        setInterval(function(){AutoUpdate()},180000);
+    });
+    
+    function AutoUpdate()
+    {
+        GetNotificationDetails(MemberID, window.localStorage.getItem("FromMemberID"), LoadNotifications);
+        GetMemberList(MemberID, LoadMemberList);
+    }
+
+    function Reset()
+    {
+        $("#Message").val("");
+    }
+    function ReplyMessage(FirstName, LastName, ID)
+    {
+        Reset();
+
+        var sData = '<option selected="true" value="' + ID + '">' + LastName + ', ' + FirstName + '</option>';
+        $("#To").html(sData);
+        $("#To").val(ID);
+        $("#ToWrapper").hide();
+        $("#ToName").html("&nbsp;&nbsp;" + LastName + ', ' + FirstName);
+
+        $("#ToNameWrapper").show();
+        $("#panelNotify").panel("open");
+    }
+
+
+    function SendTheMessage() {
+
+        var inURL = ServicePrefix + "services/PixxGet.asmx/InsertMemberNotification";
+
+        var sData = '{MemberID:"' + window.localStorage.getItem("FromMemberID") + '",';
+        sData = sData + 'FromMemberID:"' + MemberID + '",';
+        sData = sData + 'NotificationTypeID:"' + '1' + '",';
+        sData = sData + 'Title:"' + '' + '",';
+        sData = sData + 'Message:"' + $("#message").val() + '",';
+        sData = sData + 'FromFirstName:"' + window.localStorage.getItem("FirstName") + '",';
+        sData = sData + 'FromLastName:"' + window.localStorage.getItem("LastName") + '"';
+        sData = sData + '}';
+
+        $.ajax
+        (
+            {
+                type: "POST",
+                url: inURL,
+                contentType: "application/json; charset=utf-8",
+                data: sData,
+                dataType: "json",
+                success: function (response) {
+
+                    $("#message").val('');
+
+
+                    var doc = $(response);
+                    var sError = "";
+
+                    doc.find("error").each
+                    (
+                        function () {
+                            sError = sError + $(this).text();
+                        }
+                    );
+                    GetNotificationDetails(MemberID, window.localStorage.getItem("FromMemberID"), LoadNotifications);
+
+                },
+                error: function (request, status, error) {
+                   // alert(status);
+                }
+            }
+        );
+
+    }
+
+    function GetMemberList(inMemberID, inCallback) {
+
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetMemberList";
+
+        var sData = '{MemberID:"' + inMemberID + '"}';
+
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function (request, status, error) {
+
+       //         alert(error);
+
+            }
+        });
+
+    }
+
+    function LoadMemberList(inData, inError) {
+        var sData = "";
+        sData = sData + '<option selected="true" value="">Select a Member</option><option value="0">Everyone</option>';
+        var data = inData.d;
+        var ctr = 0;
+
+        $.each(data, function (index, info) {
+
+
+            if (info.MemberID != MemberID) {
+                sData = sData + '<option value="' + info.MemberID + '">' + info.LastName + ', ' + info.FirstName + '</option>';
+            }
+
+
+        });
+        AllMembers = sData;
+
+        //alert(sData);
+ 
+    }
+
+    function GetNotificationDetails(inMemberID, inFromMemberID, inCallback)
+    {
+
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetNotificationDetails";
+
+        var sData = '{MemberID:"' + inMemberID + '",FromMemberID:"' + inFromMemberID + '"}';
+
+
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function (request, status, error) {
+
+       //         alert(error);
+
+            }
+        });
+
+    }
+
+    function LoadNotificationDetails(inData, inError)
+    {
+        var sData = "";
+
+        var data = inData.d;
+        var ctr = 0;
+        $("#notificationDetailList").html("");
+        $.each(data, function (index, info) {
+
+            sData = LoadDataRowDetail(info.CreateDate,
+                                        info.TypeID,
+                                        info.NotificationTitle,
+                                        info.NotificationMessage,
+                                        info.FromMemberID,
+                                        info.FirstName,
+                                        info.LastName);
+            $("#notificationDetailList").append(sData);
+
+            //$("#" + info.FromMemberID).on
+            //    ("tap", function () {
+            //        GetDetails(MemberID, info.FromMemberID, info.FirstName);
+            //    });
+        });
+
+
+        $("#notificationDetailList").show();
+        $(".gameContainer1").show();
+        $("#panelNotifyDetails").panel("open");
+    }
+
+    function GetNotifications(inMemberID, inCallback)
+    {
+
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetNotifications";
+
+        var sData = '{MemberID:"' + inMemberID + '"}';
+
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function (request, status, error) {
+
+          //      alert(error);
+
+            }
+        });
+
+    }
+
+    function GetDetails(MemberID, FromMemberID, FromFirstName)
+    {
+        $("#FromDetials").html(FromFirstName);
+        GetNotificationDetails(MemberID, FromMemberID, LoadNotificationDetails);
+
+
+    }
+    function LoadNotifications(inData, inError)
+    {
+        var sData = "";
+
+        
+        var data = inData.d;
+        var ctr = 0;
+        $("#notificationList").html("");
+        $.each(data, function (index, info) {
+            
+            sData =  LoadDataRow(info.CreateDate,
+                                        info.TypeID,
+                                        info.NotificationTitle,
+                                        info.NotificationMessage,
+                                        info.FromMemberID,
+                                        info.FirstName,
+                                        info.LastName);
+            $("#notificationList").append(sData);
+
+        });
+
+        $("#display").html(window.localStorage.getItem("FromFirstName"));
+        $("#notificationList").show();
+        $(".gameContainer1").show();
+    }
+
+    function LoadDataRow(CreateDate,
+                                        TypeID,
+                                        NotificationTitle,
+                                        NotificationMessage,
+                                        FromMemberID,
+                                        FirstName,
+                                        LastName)
+    {
+
+
+        var sData = '';
+        var align = '';
+
+        if (FromMemberID == MemberID)
+        {
+            align = "right";
+        }
+        else
+        {
+            align = "left";
+        }
+
+        sData = sData + '<div id="' + FromMemberID + '"class="gameContainer1" >';
+
+        sData = sData + '             <div  class="gameContainer2" style="width:75%;background-color:' + (FromMemberID==MemberID ? 'lightblue' : 'white') + '">';
+        sData = sData + '                <div  class="gameContainer3">';
+        sData = sData + '                    <div  class="gameContainer4">';
+        sData = sData + '                         <div align="center" style="width:100%; display:table;">';
+        sData = sData + '                             <table  width="100%" cellpadding="4" cellspacing="0" border="0">';
+        sData = sData + '<tr>';
+
+       // alert (FromMemberID > 0 ? "&nbsp;<a href='#' onClick='ReplyMessage('\"" + FirstName + "\",\"" + LastName + "\", " + FromMemberID + ")'>[reply]</a>" : "");
+        sData = sData + '<tr>';
+
+        sData = sData + '<td style="text-align:'+ align +';color:navy;font-size:75%">' + CreateDate + '<hr></td></tr>';
+        
+        sData = sData + '<tr><td style="text-align:' + align + ';color:black;font-size:small">';
+        sData = sData + NotificationMessage;
+        sData = sData + '</td></tr>';
+        
+
+        
+        sData = sData + '</table>';
+        sData = sData + '</div>';
+        sData = sData + '</div>';
+        sData = sData + '</div>';
+        sData = sData + '</div>';
+        sData = sData + '</div>';
+        
+        return sData;
+
+    }
+
+
+    function LoadDataRowDetail(CreateDate,
+                                        TypeID,
+                                        NotificationTitle,
+                                        NotificationMessage,
+                                        FromMemberID,
+                                        FirstName,
+                                        LastName) {
+
+        var sData = '';
+
+        sData = sData + CreateDate + '<br><div class="gameContainer1" style="background-color:green">';
+        //sData = sData + '             <div  class="gameContainer2">';
+        //sData = sData + + '</div>';
+        if (FromMemberID == MemberID)
+        {
+            sData = sData + '<div class="gameContainer2" style="        border-radius:10px;background-color:lightblue;color:black;font-size:small">';
+
+        }
+        else
+        {
+            sData = sData + '<div class="gameContainer2"  style="        border-radius:10px;background-color:white;color:black;font-size:small">';
+        }
+
+        sData = sData + NotificationMessage;
+        sData = sData + '</div>';
+        //sData = sData + '</table>';
+
+        sData = sData + '</div>';
+
+        return sData;
+
+    }
+
+</script>
+
+</head>
+<body>
+
+    <div id="login" data-role="page" data-theme="b">
+            <div data-role="panel" id="panelNotify" data-position="right" data-display="overlay" data-theme="b">
+                <h2>Send Message</h2>
+                <hr />
+                <div id="ToWrapper">
+                    <div data-role="fieldcontain">
+                        <select id="To"></select>
+                    </div>
+                </div>
+                <div id="ToNameWrapper">
+                    <div data-role="fieldcontain">
+                        <div id="ToName" style="display:table-cell"></div>
+                    </div>
+                </div>
+                <div data-role="fieldcontain">
+                    <textarea id="Message" cols="40" rows="10" maxlength="200"></textarea>
+                </div>
+                <div>
+                    <input id="btn" type="button" onclick="Send();" data-inline="true" value="Send" />
+                </div>
+            </div>
+
+            <div data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+                <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+                <hr />
+                <!--<div data-role="content" data-theme="b" class="btnPanel">-->
+                <ul data-role="listview">
+                    <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                    <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                    <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                    <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                    <li><a data-ajax='false' href="sport.html">League</a></li>
+                    <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                    <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                    <li><a href="#" onclick="Logout();">Signout</a></li>
+                </ul>
+                <!--</div>-->
+            </div>
+            <!-- Data Postion Fixed-->
+            <div data-role="header" data-tap-toggle="false" data-theme="b" id="header">
+                <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;">
+                </div>
+                <div style="display:table; background-color:blue; width:100%;">
+                    <div style="display:table-row">
+                        <div align="center" id="display" style="height:35px;display: table-cell; color: yellow; width: 100%; text-align: center; vertical-align: middle">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div data-role="content" data-theme="b" id="wrapper">
+                <div id="notificationList" class="inner-content" style="padding-top: 5px">
+                </div>
+            </div>
+
+            <div data-role="footer"data-position="fixed" data-tap-toggle="false" data-theme="b" style="width:100%">
+                <div style="width:100%; display:table;">
+                    <div style="display:table-row;">
+                        <div style="width:100%;display:table-cell; vertical-align:middle;"><input type="text" id="message" value="" /></div>
+                        <div style="display:table-cell; vertical-align:middle;"><input type="button" value="Send" id="sendMessage" onclick="SendTheMessage();" /></div>
+                    </div>
+                </div>
+                <div style="width:100%; display:table;">
+                    <div style="display:table-row;">
+                        <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div> 
+
+</body>
+</html>

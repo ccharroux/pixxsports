@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pixx</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=default-width, initial-scale=1" />
+    <link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+        <link rel="stylesheet" href="css/pixxhockey.css" />
+        <script src="jquery/jquery.js"></script>
+        <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+        <script src="javascript/pixx.js"></script>
+   <script>
+
+        var gStatsOptions = "<option selected='selected' value='-1'>My Dashboard</option>";
+        gStatsOptions = gStatsOptions + "<option value='0'>My Stats</option>";
+        var gOldID = "-1";
+
+        $(document).on('pageinit', function ()
+            {
+                CheckLogin();
+                SetCommonEvents();
+                GetTheStats(LoadTheStats);
+                SetInner();
+            }
+        );
+
+        $(document).ready(function () {
+            $("#StatsPackage").html(gStatsOptions);
+            $("#StatsPackage").val("-1");
+            UpdateList("#StatsPackage");
+            GetMessageCount(MemberID);
+            $("#-1").show();
+            setInterval(function(){AutoUpdate()},180000);
+        });
+
+    function ShowStats(ID)
+        {
+        $("#" + gOldID).hide();
+        $("#" + ID).show();
+        gOldID = ID;
+    }
+
+    function AutoUpdate()
+    {
+        var ID = $("#StatsPackage").val();
+        GetTheStats(LoadTheStats);
+        $("#" + ID).show();
+    }
+
+    function GetTheStats(inCallback)
+    {
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetAllStats";
+
+        var sData = '{SportID:"' + SportID + '"}';
+
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            async: false,
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function ( request, status, error) {
+
+               // alert(error);
+
+            }
+        });
+
+    }
+    function LoadTheStats(inData, inError)
+    {
+
+        var sGame = "";
+        var sMyStats = OpenPage(0);
+        sMyStats = sMyStats + OpenTable("My Stats");
+
+        var sMyDashboardView = OpenPage(-1);
+        var sMyDashboard = "";
+       
+        var data = inData.d;
+        var ctr = 0;
+        var holdLabelValue = '';
+        var Place = 0;
+        var holdWins = 0;
+        var holdLosses = 0;
+        var bDashboardWeek = false;
+        var bDashboardMonth = false;
+        var bDashboardRow = false;
+        var bDashboardPoints = false;
+
+        var sDashboardToday = "";
+        var sDashboardYesterday = "";
+        var sDashboardThisWeek = "";
+        var sDashboardThisMonth = "";
+        var sDashboardSeason = "";
+        var sDashboardPoints = "";
+
+
+        $.each(data, function (index, stats)
+        {
+            // Control Break 
+            if (holdLabelValue != stats.LabelValue)
+            {
+                holdWins = 99999999;
+                holdLosses = 99999999;
+                
+                if (ctr > 0)
+                {
+                    sGame = sGame + CloseTable();
+                    sGame = sGame + ClosePage();
+                    //sMyDashboard = sMyDashboard + CloseDashboardTable();
+                }
+
+                ctr++;
+
+                sGame = sGame + OpenPage(ctr);
+                sGame = sGame + OpenTable((stats.Label == "Week" ? "Week of " : "") + stats.LabelValue);
+
+                switch (stats.Label)
+                {
+                    // Points
+                    case "z":
+                        bDashboardRow = false;
+                        if (bDashboardPoints == false) {
+                            bDashboardPoints = true;
+                            bDashboardRow = true;
+                        }
+
+                        break;
+
+                    case "Week":
+                        bDashboardRow = false;
+                        if (bDashboardWeek==false)
+                        {
+                            bDashboardRow = true;
+                            bDashboardWeek = true;
+                        }
+
+                        break;
+
+                    case "Month":
+                        bDashboardRow = false;
+                        if (bDashboardMonth == false)
+                        {
+                            bDashboardMonth = true;
+                            bDashboardRow = true;
+                        }
+                        break;
+                    default:
+                        bDashboardRow = true;
+
+                }
+
+                if (bDashboardRow == true)
+                {
+                    //sMyDashboard = sMyDashboard + OpenTableDashboard('');
+                    sMyDashboard = "";//OpenTableDashboard('');
+                }
+
+                Place = 0;
+                gStatsOptions = gStatsOptions + "<option value='" + ctr + "'>" + GenerateStatsLabel(stats.Label, stats.LabelValue) + "</option>";
+                holdLabelValue = stats.LabelValue;
+            }
+
+            if ((stats.Wins < holdWins) || (stats.Wins == holdWins && stats.Losses > holdLosses))
+            {
+                Place++;
+            }
+            holdWins = stats.Wins;
+            holdLosses = stats.Losses;
+            
+            if (bDashboardRow == true)
+            {
+                    
+                if (stats.MemberID == MemberID)
+                {
+                    var lbl = (stats.Label == "Month" ? "This Month" : (stats.Label == "Week" ? "This Week" : stats.LabelValue));
+                    sMyDashboard = sMyDashboard + LoadDashboardRow(stats.MemberID, lbl, stats.Wins, stats.Losses, Place);// + CloseDashboardTable();
+                    
+                    if (lbl == "This Week")
+                    {
+                        sDashboardThisWeek = sMyDashboard;
+                    }
+                    if (lbl == "This Month")
+                    {
+                        sDashboardThisMonth = sMyDashboard;
+                    }
+                    if (lbl == "Yesterday")
+                    {
+                        sDashboardYesterday = sMyDashboard;
+                    }
+                    if (lbl == "Today")
+                    {
+                        sDashboardToday = sMyDashboard;
+                    }
+                    if (lbl == "Season")
+                    {
+                        sDashboardSeason = sMyDashboard;
+                    }
+                    // Points
+                    if (lbl == "Points") {
+                        sDashboardPoints = sMyDashboard;
+                    }
+                }
+
+            }
+
+            if (stats.MemberID == MemberID && stats.LabelValue != "Points")
+            {
+                var lbl = GenerateStatsLabel(stats.Label, stats.LabelValue);
+                sMyStats = sMyStats + LoadStatsRow(0, lbl, stats.Wins, stats.Losses, Place);
+            }
+            sGame = sGame + LoadStatsRow(stats.MemberID, stats.MemberName, stats.Wins, stats.Losses, Place);
+ 
+        });
+
+        if (ctr > 0)
+        {
+            sGame = sGame + CloseTable();
+            sGame = sGame + ClosePage();
+        }
+
+
+       // sMyDashboard = sMyDashboard + CloseDashboardTable() + ClosePage();
+        //alert(sDashboardToday);
+        //sMyDashboardView = sMyDashboardView + CloseDashboardTable() + ClosePage();
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%'>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table-row;'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:25px;'>" + (sDashboardPoints.length == 0 ? LoadDashboardRowEmpty("Points") : sDashboardPoints) + "</div></div>";
+        sMyDashboardView = sMyDashboardView + "</div>";
+
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table-row;'><div style='display:table-cell;width:50%;padding-left: 0px;padding-right: 0px;padding-bottom:25px;'>" + (sDashboardToday.length == 0 ? LoadDashboardRowEmpty("Today") : sDashboardToday) + "</div><div style='padding-left: 0px;padding-right: 0px;display:table-cell;width:75%;'>" + (sDashboardYesterday.length == 0 ? LoadDashboardRowEmpty("Yesterday") : sDashboardYesterday) + "</div></div>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table-row'><div style='display:table-cell;width:50%;padding-left: 0px;padding-right: 0px;padding-bottom:25px;'>" + (sDashboardThisWeek.length == 0 ? LoadDashboardRowEmpty("This Week") : sDashboardThisWeek) + "</div><div style='padding-left: 0px;padding-right: 0px;display:table-cell;width:50%;'>" + (sDashboardThisMonth.length == 0 ? LoadDashboardRowEmpty("This Month") : sDashboardThisMonth) + "</div></div>";
+        sMyDashboardView = sMyDashboardView + "</div>";
+
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%'>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table-row;'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:25px;'>" + (sDashboardSeason.length == 0 ? LoadDashboardRowEmpty("Season") : sDashboardSeason) + "</div></div>";
+        sMyDashboardView = sMyDashboardView + "</div>";
+
+        sMyDashboardView = sMyDashboardView + ClosePage();
+  
+        //alert(sMyDashboardView);
+
+        sMyStats = sMyStats + CloseTable() + ClosePage();
+        sGame = sGame + sMyStats + sMyDashboardView;
+ 
+        $("#statsList").html(sGame);
+        $("#statsList").show();
+    }
+
+    function GenerateStatsLabel(label, value)
+    {
+        var months = [ "", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
+        var monthsAbbr = [ "", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
+        if (label == "Month")
+        {
+            var res = value.split("-");
+            var iMonth = res[1];
+            var iYear = res[0];
+            return months[iMonth] + " " + iYear;
+        }
+        if (label == "Week")
+        {
+            
+            var res = value.split("-");
+            var iMonth = parseInt(res[1]);
+            var iDay = parseInt(res[2]);
+            var iYear = res[0];
+            
+            return "week of " + monthsAbbr[iMonth] + " " + ConvertToOrdinal(iDay) + " " + iYear;
+
+        }
+        return value;
+    }
+    function OpenTable(LabelValue)
+    {
+        var sGame = '';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr style="background-color:silver;color:black">';
+        sGame = sGame + '<td style="width:10%; font-size:smaller">';
+        sGame = sGame + '&nbsp;';
+        sGame = sGame + '</td>';
+
+        sGame = sGame + '<td style="width:60%;text-align:left;font-size:smaller">';
+        sGame = sGame + LabelValue;
+        sGame = sGame + '</td>';
+        if (LabelValue == "Points") {
+            sGame = sGame + '<td style="width:30%;font-size:smaller">';
+            sGame = sGame + '';
+            sGame = sGame + '</td>';
+
+        }
+        else
+        {
+            sGame = sGame + '<td style="width:10%;font-size:smaller">';
+            sGame = sGame + 'W';
+            sGame = sGame + '</td>';
+            sGame = sGame + '<td style="width:10%;font-size:smaller">';
+            sGame = sGame + 'L';
+            sGame = sGame + '</td>';
+
+            sGame = sGame + '<td style="width:10%;font-size:smaller">';
+            sGame = sGame + '%';
+            sGame = sGame + '</td>';
+        }
+        sGame = sGame + '</tr>';
+
+        return sGame;
+    }
+    function OpenTableDashboard(LabelValue) {
+        var sGame = '';
+        sGame = sGame + '<div style="margin: 0 auto;width:50%"><table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+
+
+        return sGame;
+    }
+
+    function OpenPage(id) {
+        var sGame = '';
+
+        sGame = sGame + '<div class="gameContainer1" id="' + id + '" style="display:none">';
+        sGame = sGame + '             <div  class="gameContainer2" >';
+        sGame = sGame + '                <div  class="gameContainer3">';
+        sGame = sGame + '                    <div  class="gameContainer4">';
+        sGame = sGame + '                         <div style="width:100%; display:table;">';
+
+
+        return sGame;
+    }
+
+    function Seperator()
+    {
+
+        var sGame = '';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td colspan="5" style="font-size:smaller"><hr></td>';
+        sGame = sGame + '</tr>';
+ 
+        return sGame;
+    }
+    function CloseDashboardTable() {
+        var sGame = '';
+        sGame = sGame + '</table></div>';
+
+        return sGame;
+    }
+    function CloseTable()
+    {
+        var sGame = '';
+        sGame = sGame + '</table>';
+
+        return sGame;
+    }
+
+    function ClosePage()
+    {
+        var sGame = '';
+
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+
+        return sGame;
+    }
+
+    function LoadStatsRow(StatsMemberID, Member, Wins, Losses, Place)
+    {
+
+        var sGame = '';
+        
+
+ 
+
+          
+        if (StatsMemberID == MemberID)
+        {
+            sGame = sGame + '<tr style="color:black;background-color:yellow">';
+        }
+        else
+        {
+            sGame = sGame + '<tr>';
+        }
+
+        sGame = sGame + '<td style="font-size:smaller">';
+        sGame = sGame + String(Place);
+        sGame = sGame + '</td>';
+        
+        sGame = sGame + '<td style="text-align:left;color=black;font-size:smaller">';
+        sGame = sGame + Member;
+        sGame = sGame + '</td>';
+        sGame = sGame + '<td style="font-size:smaller">';
+        sGame = sGame + String(Wins);
+        sGame = sGame + '</td>';
+
+        if (Losses != "-1") {
+            sGame = sGame + '<td style="font-size:smaller">';
+            sGame = sGame + String(Losses);
+            sGame = sGame + '</td>';
+
+            sGame = sGame + '<td style="font-size:smaller">';
+            sGame = sGame + String(((Wins + Losses == 0 || Wins == 0) ? '0.000' : (Losses == 0 ? '1.000' : (Wins / (Wins + Losses)).toPrecision(3))));
+            sGame = sGame + '</td>';
+        }
+        sGame = sGame + '</tr>';
+    
+        return sGame;
+
+
+      
+    }
+    function LoadDashboardRowEmpty(Label) {
+
+        var sGame = '';
+
+        // ToBe Removed
+        //sGame = sGame + '<tr>';
+        //sGame = sGame + '<td style="font-size:large;width:100%">';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+        sGame = sGame + '<tr style="background-color:black;color:silver">';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">' + Label;
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        //style = "width:100%; display:table;"
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;display:table;width:85%;background-color:lightblue;color:black">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:large;width:100%">';
+        sGame = sGame + 'NA';
+
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table>';
+        sGame = sGame + '</div>';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">';
+        sGame = sGame + "&nbsp;";
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        // TB Removed
+        //sGame = sGame + '</td>';
+        //sGame = sGame + '</tr>';
+
+        return sGame;
+
+
+
+    }
+    function LoadDashboardRow(StatsMemberID, Label, Wins, Losses, Place)
+    {
+
+        var sGame = '';
+
+        // ToBe Removed
+        //sGame = sGame + '<tr>';
+        //sGame = sGame + '<td style="font-size:large;width:100%">';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+        sGame = sGame + '<tr style="background-color:black;color:silver">';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">' + Label;
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        //style = "width:100%; display:table;"
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;display:table;width:85%;background-color:lightblue;color:black">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:large;width:100%">';
+        if (Label == "Points") {
+            sGame = sGame + String(Wins);
+        }
+        else
+        {
+            sGame = sGame + String(Wins) + "-";
+            sGame = sGame + String(Losses);
+        }
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table>';
+        sGame = sGame + '</div>';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">';
+        sGame = sGame + ConvertToOrdinal(Place) + " Place";
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        // TB Removed
+        //sGame = sGame + '</td>';
+        //sGame = sGame + '</tr>';
+
+        return sGame;
+
+
+
+    }
+    </script>
+   <style>
+       .ui-select
+       {
+            padding: 0px 0px 0px 0px !important;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 0px;
+            border: 0px;
+            border-color: transparent;
+            display: box;
+            text-transform: none;
+            text-shadow: none;
+            margin-bottom: 0px;
+       }
+       </style>
+       
+
+</head>
+<body>
+
+
+    <div data-role="page" id="site" data-theme="b">
+
+        <div data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+            <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+            <hr />
+            <ul data-role="listview">
+                <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                <li><a data-ajax='false' href="sport.html">League</a></li>
+                <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                <li><a href="#" onclick="Logout();">Signout</a></li>
+            </ul>
+        </div>
+        <!-- Data Postion Fixed-->
+        <div data-role="header" id="header" data-tap-toggle="false" data-theme="b" style="position:fixed">
+            <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;">
+            </div>
+           <div style="display:table; width:100%;padding:0px 0px 0px 0px;background-color: blue">
+                <div style="display:table-row">
+                    <div align="center" style="width: 90%; display: table-cell; padding: 0px 0px 0px 0px;">
+                        <div style="display:table-cell">
+                            <select id="StatsPackage" data-enhance="false" data-native-menu="true" data-mini="true" onchange="ShowStats(this.value);" style="outline: 0;border-shadow: none;margin-top: 0px;padding-top: 0px; border: none"></select>
+                        </div>
+                    </div>
+            </div>
+            </div>
+
+        </div>
+
+        <div data-role="content" data-theme="b" id="wrapper">
+            <div id="statsList" class="inner-content">
+            </div>
+        </div>
+        <div data-role="footer" data-position="fixed" data-tap-toggle="false" data-theme="b">
+            <div style="width:100%; display:table;">
+                <div style="display:table-row;">
+                    <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+

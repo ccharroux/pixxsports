@@ -1,0 +1,351 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Pixx</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=default-width, initial-scale=1" />
+    <link rel="stylesheet" href="jquery/jquery.mobile-1.4.2.min.css">
+        <link rel="stylesheet" href="css/pixxhockey.css" />
+        <script src="jquery/jquery.js"></script>
+        <script src="jquery/jquery.mobile-1.4.2.min.js"></script>
+        <script src="javascript/pixx.js"></script>
+    <script>
+
+        $(document).on('pageinit', function ()
+            {
+                CheckLogin();
+                SetCommonEvents();
+                GetTheStats(LoadTheStats);
+                $("#displayDate").html("Accomplishments");
+                $("#-1").show();
+                SetInner();
+
+            }
+        );
+        
+        $(document).ready(function ()
+        {
+                setInterval(function(){AutoUpdate()},180000);
+        });
+        
+    function AutoUpdate()
+    {
+        setInterval(function(){AutoUpdate()},180000);
+        $("#-1").show();    
+    }
+    
+    function GetTheStats(inCallback)
+    {
+        var inURL = ServicePrefix + "services/PixxGet.asmx/GetMemberAccomplishments";
+
+        var sData = '{MemberID:"' + MemberID + '", SportID:"' + SportID + '"}';
+        $.ajax({
+            type: "POST",
+            url: inURL,
+            contentType: "application/json; charset=utf-8",
+            data: sData,
+            dataType: "json",
+            async: false,
+            success: function (response) {
+
+                var doc = $(response);
+                var sError = "";
+
+                doc.find("error").each(function () {
+
+                    sError = sError + $(this).text();
+
+                }); //end each
+
+                if (inCallback != null) {
+                    inCallback(response, sError);
+
+                } //end if
+
+            },
+            error: function ( request, status, error) {
+
+               // alert(error);
+
+            }
+        });
+
+    }
+    function LoadTheStats(inData, inError)
+    {
+
+        var sGame = "";
+
+        var sMyDashboardView = OpenPage(-1);
+        var sMyDashboard = "";
+       
+        var data = inData.d;
+
+        var ctr = 0;
+        var holdLabelValue = '';
+        var Place = 0;
+        //var myWins = 0;
+        //var myLosses = 0;
+        var bDashboardWeek = false;
+        var bDashboardMonth = false;
+        var bDashboardRow = false;
+        var bDashboardPoints = false;
+
+        var sDashboardToday = "";
+        var sDashboardYesterday = "";
+        var sDashboardThisWeek = "";
+        var sDashboardThisMonth = "";
+        var sDashboardSeason = "";
+        var sDashboardPoints = "";
+
+
+        $.each(data, function (index, stats)
+        {
+            sMyDashboard = "";
+ 
+            var lbl = stats.Label;
+            
+            sMyDashboard = sMyDashboard + LoadDashboardRow(stats.MemberID, lbl, stats.Count);
+
+            if (lbl == "Week")
+            {
+                sDashboardThisWeek = sMyDashboard;
+            }
+            if (lbl == "Month")
+            {
+                sDashboardThisMonth = sMyDashboard;
+            }
+            if (lbl == "Best Day")
+            {
+                sDashboardYesterday = sMyDashboard;
+            }
+            if (lbl == "Undefeated")
+            {
+                sDashboardToday = sMyDashboard;
+            }
+            if (lbl == "Biggest Loser")
+            {
+                sDashboardSeason = sMyDashboard;
+            }
+ 
+        });
+
+
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'><div style='display:table-row;width:100%;'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:5px;'>" + (sDashboardThisWeek.length == 0 ? LoadDashboardRowEmpty("Week") : sDashboardThisWeek) + "</div></div></div>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'><div style='display:table-row;width:100%;'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:5px;'>" + (sDashboardThisMonth.length == 0 ? LoadDashboardRowEmpty("Month") : sDashboardThisMonth) + "</div></div></div>";
+
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'><div style='display:table-row;width:100%'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:5px;'>" + (sDashboardToday.length == 0 ? LoadDashboardRowEmpty("Best Day") : sDashboardToday) + "</div></div></div>";
+
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'><div style='display:table-row;width:100%;'><div style='padding-left: 0px;padding-right: 0px;padding-bottom: 5px;display:table-cell;width:100%;'>" + (sDashboardYesterday.length == 0 ? LoadDashboardRowEmpty("Undefeated") : sDashboardYesterday) + "</div></div></div>";
+        sMyDashboardView = sMyDashboardView + "<div style='display:table;width:100%;'><div style='display:table-row;width:100%;'><div style='display:table-cell;width:100%;padding-left: 0px;padding-right: 0px;padding-bottom:5px;'>" + (sDashboardSeason.length == 0 ? LoadDashboardRowEmpty("Biggest Loser") : sDashboardSeason) + "</div></div></div>";
+
+
+        sMyDashboardView = sMyDashboardView + ClosePage();
+  
+        sGame = sGame  + sMyDashboardView;
+ 
+        $("#statsList").html(sGame);
+        $("#statsList").show();
+    }
+
+    function OpenTableDashboard(LabelValue) {
+        var sGame = '';
+        sGame = sGame + '<div style="margin: 0 auto;width:50%"><table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+
+
+        return sGame;
+    }
+
+    function OpenPage(id) {
+        var sGame = '';
+        sGame = sGame + '<div class="gameContainer1" id="' + id + '" >';
+        sGame = sGame + '             <div  class="gameContainer2" >';
+        sGame = sGame + '                <div  class="gameContainer3">';
+        sGame = sGame + '                    <div  class="gameContainer4">';
+        sGame = sGame + '                         <div style="width:100%; display:table;">';
+        return sGame;
+    }
+
+    function Seperator()
+    {
+
+        var sGame = '';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td colspan="5" style="font-size:smaller"><hr></td>';
+        sGame = sGame + '</tr>';
+ 
+        return sGame;
+    }
+    function CloseDashboardTable() {
+        var sGame = '';
+        sGame = sGame + '</table></div>';
+
+        return sGame;
+    }
+
+    function ClosePage()
+    {
+        var sGame = '';
+
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+        sGame = sGame + '</div>';
+
+        return sGame;
+    }
+    function Translate(labelt)
+    {
+        if (labelt == "Week"){
+            return "Weeks Won";
+        }
+        if (labelt == "Month"){
+            return "Months Won";
+        }
+        if (labelt == "Best Day") {
+            return "Most Wins Days";
+        }
+        if (labelt == "Biggest Loser") {
+            return "Winless Days";
+        }
+        if (labelt == "Undefeated") {
+            return "Undefeated Days";
+        }
+        return "";
+    }
+    
+    function LoadDashboardRowEmpty(Label) {
+
+        var sGame = '';
+
+        // ToBe Removed
+        //sGame = sGame + '<tr>';
+        //sGame = sGame + '<td style="font-size:large;width:100%">';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+        sGame = sGame + '<tr style="background-color:black;color:silver">';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">' + Translate(Label);
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        //style = "width:100%; display:table;"
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;display:table;width:85%;background-color:lightblue;color:black">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:large;width:100%">';
+        sGame = sGame + 'NA';
+
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table>';
+        sGame = sGame + '</div>';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">';
+        sGame = sGame + "&nbsp;";
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        // TB Removed
+        //sGame = sGame + '</td>';
+        //sGame = sGame + '</tr>';
+
+        return sGame;
+
+
+
+    }
+    function LoadDashboardRow(StatsMemberID, Label, Count)
+    {
+
+        var sGame = '';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0" >';
+        sGame = sGame + '<tr style="background-color:black;color:silver">';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">' + Translate(Label);
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;display:table;width:85%;background-color:lightblue;color:black">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:large;width:100%">';
+        sGame = sGame + String(Count);
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table>';
+        sGame = sGame + '</div>';
+
+        sGame = sGame + '<div class="gameContainer2" style="padding: 0px 0px 0px 0px;width:85%;display:table;">';
+        sGame = sGame + '<table width="100%" cellpadding="3" cellspacing="0" border="0">';
+        sGame = sGame + '<tr>';
+        sGame = sGame + '<td style="text-align:center;font-size:small;width:50%">';
+        sGame = sGame + "&nbsp;";
+        sGame = sGame + '</td>';
+        sGame = sGame + '</tr>';
+        sGame = sGame + '</table></div>';
+
+        return sGame;
+
+    }
+    </script>
+</head>
+<body>
+
+
+    <div data-role="page" id="site" data-theme="b">
+
+        <div data-role="panel" id="mypanel" data-position="left" data-display="overlay" data-theme="b">
+            <div style="padding: 5px 5px 5px 5px"><img src="images/pixx_menu.jpg" class="PixxPic"></div>
+            <hr />
+            <!--<div data-role="content" data-theme="b" class="btnPanel">-->
+            <ul data-role="listview">
+                <li><a data-ajax='false' href="scoreboard.html">Scoreboard</a></li>
+                <li><a data-ajax='false' href="lockerroom.html">Locker Room</a></li>
+                <li><a data-ajax='false' href="stats.html">Stats</a></li>
+                <li><a data-ajax='false' href="accomplishments.html">Accomplishments</a></li>
+                <li><a data-ajax='false' href="sport.html">League</a></li>
+                <li><a data-ajax='false' href="profile.html">Profile</a></li>
+                <li><a data-ajax='false' href="preferences.html">Notifications</a></li>
+                <li><a href="#" onclick="Logout();">Signout</a></li>
+            </ul>
+        </div>
+        <!-- Data Postion Fixed-->
+        <div data-role="header" data-tap-toggle="false" data-theme="b">
+            <div id="menuTop" style="padding-top: 25px; padding-bottom: 5px;display:table; width:100%;">
+            </div>
+            <div style="display:table; width:100%;">
+                <div style="display:table-row">
+                    <div align="center" id="displayDate" style="height:35px;display: table-cell; background-color: blue; color: yellow; width: 100%; text-align: center; vertical-align: middle">
+                        Accomplishments
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+
+        <div data-role="content" data-theme="b">
+            <div id="statsList" class="inner-content">
+            </div>
+        </div>
+        <div data-role="footer" data-position="fixed" data-tap-toggle="false" data-theme="b">
+            <div style="width:100%; display:table;">
+                <div style="display:table-row;">
+                    <div id="SportName" style="float: right;display: table-cell; vertical-align:middle;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+
